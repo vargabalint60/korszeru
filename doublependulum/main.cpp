@@ -6,6 +6,7 @@
 #include <cmath>
 #include <vector>
 #include "miniwindow.h"
+#include "vector2.h"
 
 
 double const g = 9.81;
@@ -20,14 +21,14 @@ std::vector<double> k6(4);
 class pendulum{
 public:
     double m1 = 1;
-    double m2 = 2;
+    double m2 = 1;
     double l1 = 90;
     double l2 = 90;
-    double phi1 = 0.2;
-    double phi2 = 0.2;
-    double dphi1 = -0.05;
-    double dphi2 = 0.1;
-    double h = 0.02;
+    double phi1 = -0.4;
+    double phi2 = -0.4;
+    double dphi1 = 0;
+    double dphi2 = 0;
+    double h = 0.05;
     double z1=phi1,z2=phi2,z3=dphi1,z4=dphi2;
 
 
@@ -72,6 +73,11 @@ public:
         dphi1 += h/6*(k1[1] + 2*k2[1] + 2*k3[1] + k4[1]);
         phi2 += h/6*(k1[2] + 2*k2[2] + 2*k3[2] + k4[2]);
         dphi2 += h/6*(k1[3] + 2*k2[3] + 2*k3[3] + k4[3]);
+
+        if (phi1 > M_PI){phi1-=2*M_PI;}
+        if (phi1 < -M_PI){phi1+=2*M_PI;}
+        if (phi2 > M_PI){phi2-=2*M_PI;}
+        if (phi2 < -M_PI){phi2+=2*M_PI;}
     }
 
     void RK45(){
@@ -124,7 +130,7 @@ public:
 
         h *= pow(1/(2*(fabs(phi1-z1) + fabs(phi2-z3) + fabs(dphi1-z2) + fabs(dphi2-z4))),1.0/4);
 
-        std::cout << pow(1/(2*(fabs(phi1-z1) + fabs(phi2-z3) + fabs(dphi1-z2) + fabs(dphi2-z4))),1.0/4) << std::endl;
+        //std::cout << pow(1/(2*(fabs(phi1-z1) + fabs(phi2-z3) + fabs(dphi1-z2) + fabs(dphi2-z4))),1.0/4) << std::endl;
     }
 
 };
@@ -134,7 +140,11 @@ int main() {
     int x = 0, y = 0;
     double mphi1 = 0, mphi2 = 0, mdphi1 = 0, mphi3 = 0, mphi4 = 0, mdphi2=0;
     bool a=false, b=false;
+    vector2d<double> state;
+
     pendulum pend;
+    std::vector<std::vector<vector2d<double>>> data{{{pend.phi1,pend.dphi1},{pend.phi2,pend.dphi2}}};
+    std::vector<vector2d<double>> data2;
     MainWindow wnd;
     wnd.window.eventDriven = false;
     wnd.mouseHandler([&](Mouse const& m)
@@ -189,7 +199,11 @@ int main() {
             pend.dphi2 = 0;
         }
         else {pend.RK4();}
-        std::cout << pend.h << std::endl;
+        //std::cout << pend.h << std::endl;
+
+        //state = {pend.phi1,pend.dphi1};
+        data.push_back({{pend.phi1,pend.dphi1},{pend.phi2,pend.dphi2}});
+
     });
     wnd.exitHandler([&]{ });
     wnd.renderHandler( [&](SoftwareRenderer& r){
@@ -197,12 +211,22 @@ int main() {
 
         r.ellipse(int(320),int(200),5,5,[](auto){ return color(100, 100, 100); });
         r.line(320,200,int(320+pend.l1*sin(pend.phi1)),int(200+pend.l1*cos(pend.phi1)),[](auto){ return color(100, 100, 100); });
-        r.ellipse(int(320+pend.l1*sin(pend.phi1)),int(200+pend.l1*cos(pend.phi1)),5,5,[](auto){ return color(100, 100, 100); });
+        r.ellipse(int(320+pend.l1*sin(pend.phi1)),int(200+pend.l1*cos(pend.phi1)),5,5,[](auto){ return color(0, 200, 100); });
         r.line(int(320+pend.l1*sin(pend.phi1)),int(200+pend.l1*cos(pend.phi1)),int(320+pend.l1*sin(pend.phi1)+pend.l2*sin(pend.phi2)),int(200+pend.l1*cos(pend.phi1)+pend.l2*cos(pend.phi2)),[](auto){ return color(100, 100, 100); });
-        r.ellipse(int(320+pend.l1*sin(pend.phi1)+pend.l2*sin(pend.phi2)),int(200+pend.l1*cos(pend.phi1)+pend.l2*cos(pend.phi2)),5,5,[](auto){ return color(100, 100, 100); });
+        r.ellipse(int(320+pend.l1*sin(pend.phi1)+pend.l2*sin(pend.phi2)),int(200+pend.l1*cos(pend.phi1)+pend.l2*cos(pend.phi2)),5,5,[](auto){ return color(255, 0, 0); });
+
+        for (auto e : data){
+            r.setpixel(900+(int)100*e[0].x,200+(int)100*e[0].y,color(0, 200, 100));
+            r.setpixel(900+(int)100*e[1].x,200+(int)100*e[1].y,color(255, 0, 0));
+        }
+
+        r.line(580,200,1220,200,[](auto){ return color(0, 0, 0); });
+        r.line(900,10,900,390,[](auto){ return color(0, 0, 0); });
+        r.line(585,205,585,195,[](auto){ return color(0, 0, 0); });
+        r.line(1214,205,1214,195,[](auto){ return color(0, 0, 0); });
     });
 
-    bool res = wnd.open(L"Window name", {64, 64}, {640, 480},
+    bool res = wnd.open(L"Double pendulum", {64, 64}, {1280, 480},
                         true, [&]{ return true; });
 
     return res ? 0 : -1;
